@@ -155,14 +155,14 @@ function App() {
                   
                   {/* MUDANÇA 3: Lista visual melhorada com botão de remover */}
                   {attachedFiles.length > 0 && (
-                    <ul style={{marginTop: '15px', listStyle: 'none', padding: 0}}>
+                    <ul className="file-list"> {/* AQUI: Adiciona a classe file-list */}
                       {attachedFiles.map((file, index) => (
-                        <li key={index} style={{display: 'flex', alignItems: 'center', marginBottom: '8px', background: '#fff', padding: '8px', borderRadius: '4px', border: '1px solid #eee'}}>
+                        <li key={index} className="file-list-item"> {/* AQUI: Adiciona a classe file-list-item */}
                           <span style={{marginRight: '10px'}}>📄 {file.name}</span>
                           <button 
                             type="button" 
                             onClick={() => handleRemoveFile(index)}
-                            style={{marginLeft: 'auto', background: '#a4262c', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                            className="remove-file-btn" 
                             title="Remover arquivo"
                           >
                             ×
