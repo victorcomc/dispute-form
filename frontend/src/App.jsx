@@ -13,23 +13,36 @@ function App() {
   const [returnTerminalCity, setReturnTerminalCity] = useState('');
   const [occurrenceSummary, setOccurrenceSummary] = useState('');
   
-  // MUDANÇA 1: Estado agora é um Array (lista) de arquivos
+  // Lista de arquivos anexados
   const [attachedFiles, setAttachedFiles] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
-  // MUDANÇA 2: Handler para múltiplos arquivos
+  // MUDANÇA 1: Agora ADICIONA à lista existente em vez de substituir
   const handleFileChange = (e) => {
-    if (e.target.files) {
-      // Converte o FileList para um Array normal para podermos manipular melhor
-      setAttachedFiles(Array.from(e.target.files));
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setAttachedFiles(prevFiles => [...prevFiles, ...newFiles]);
+      
+      // Limpa o input para permitir selecionar o mesmo arquivo novamente se quiser
+      e.target.value = null; 
     }
+  };
+
+  // MUDANÇA 2: Função para remover um arquivo da lista
+  const handleRemoveFile = (indexToRemove) => {
+    setAttachedFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (attachedFiles.length === 0) {
+      alert("Por favor, anexe pelo menos um documento.");
+      return;
+    }
+
     setLoading(true);
     setFeedbackMessage('');
     setIsError(false);
@@ -46,26 +59,23 @@ function App() {
       formData.append('returnTerminalCity', returnTerminalCity);
       formData.append('occurrenceSummary', occurrenceSummary);
       
-      // MUDANÇA 3: Loop para adicionar TODOS os arquivos selecionados
-      // Usamos o mesmo nome 'arquivo' várias vezes, o backend vai entender como uma lista
+      // Adiciona todos os arquivos da nossa lista manual
       attachedFiles.forEach((file) => {
         formData.append('arquivo', file);
       });
 
-      // Lembre-se: use sua URL do Render aqui em produção!
-      // const response = await axios.post('http://127.0.0.1:5000/api/formulario', formData, {
+      // URL de produção do Render
       const response = await axios.post('https://dispute-backend.onrender.com/api/formulario', formData, {
          headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       setFeedbackMessage('Sucesso! Formulário enviado. Obrigado.');
       
-      // Limpar formulário
+      // Limpar tudo
       setConsigneeData(''); setRequestReason(''); setBlContainer('');
       setFreeTimeGranted(''); setDischargeDate(''); setFirstReturnAttemptDate('');
       setContainerReturnDate(''); setReturnTerminalCity(''); setOccurrenceSummary('');
-      setAttachedFiles([]); // Limpa a lista de arquivos
-      e.target.reset(); // Reseta o input visualmente
+      setAttachedFiles([]); 
 
     } catch (error) {
       console.error('Erro no envio:', error);
@@ -88,10 +98,10 @@ function App() {
         </header>
 
         <main className="form-body">
-          <p className="disclaimer">Quando você enviar este formulário, ele não coletará automaticamente seus detalhes.</p>
           <p className="required-indicator">* Obrigatória</p>
 
           <form onSubmit={handleSubmit}>
+            {/* ... (Seções 1 e 2 iguais) ... */}
             <section className="form-section">
               <h3 className="section-title">Informações Gerais:</h3>
               <div className="question-block">
@@ -132,20 +142,32 @@ function App() {
               </div>
             </section>
 
+            {/* SEÇÃO 3: Upload Atualizado */}
             <section className="form-section">
               <h3 className="section-title">Informações da Devolução:</h3>
               <div className="question-block">
-                <label className="question-label">9. Anexar as Evidências (Pode selecionar vários): <span className="req">*</span></label>
+                <label className="question-label">9. Anexar Evidências (Você pode adicionar vários arquivos): <span className="req">*</span></label>
+                
                 <div className="file-upload-wrapper">
-                  {/* MUDANÇA 4: Atributo 'multiple' adicionado */}
-                  <input type="file" id="file-upload" className="file-upload-input" onChange={handleFileChange} required multiple />
-                  <div className="file-upload-info">Limite de 10MB por envio.</div>
+                  {/* Removemos o 'required' nativo do input porque agora controlamos manualmente */}
+                  <input type="file" id="file-upload" className="file-upload-input" onChange={handleFileChange} multiple />
+                  <div className="file-upload-info">Clique novamente para adicionar mais arquivos.</div>
                   
-                  {/* MUDANÇA 5: Mostra a lista de arquivos selecionados */}
+                  {/* MUDANÇA 3: Lista visual melhorada com botão de remover */}
                   {attachedFiles.length > 0 && (
-                    <ul style={{marginTop: '10px', fontSize: '12px', color: '#333'}}>
+                    <ul style={{marginTop: '15px', listStyle: 'none', padding: 0}}>
                       {attachedFiles.map((file, index) => (
-                        <li key={index}>📄 {file.name}</li>
+                        <li key={index} style={{display: 'flex', alignItems: 'center', marginBottom: '8px', background: '#fff', padding: '8px', borderRadius: '4px', border: '1px solid #eee'}}>
+                          <span style={{marginRight: '10px'}}>📄 {file.name}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveFile(index)}
+                            style={{marginLeft: 'auto', background: '#a4262c', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                            title="Remover arquivo"
+                          >
+                            ×
+                          </button>
+                        </li>
                       ))}
                     </ul>
                   )}
@@ -158,10 +180,10 @@ function App() {
             </section>
 
             <div className="submit-area">
-              {/* Desabilita se não tiver arquivos selecionados */}
               <button type="submit" className="submit-btn" disabled={loading || attachedFiles.length === 0}>
                 {loading ? 'Enviando...' : 'Enviar'}
               </button>
+              {attachedFiles.length === 0 && <p style={{fontSize: '12px', color: '#a4262c', marginTop: '8px'}}>* Anexe pelo menos um arquivo para enviar.</p>}
             </div>
           </form>
 
