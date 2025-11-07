@@ -1,13 +1,9 @@
 import os
 import uuid
 import re
-import smtplib
 import threading
+import resend
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
 from dotenv import load_dotenv
@@ -15,14 +11,14 @@ from supabase import create_client, Client
 
 load_dotenv()
 
-# --- Variáveis de Ambiente ---
+# --- Configurações ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY") # Nova chave!
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+resend.api_key = RESEND_API_KEY # Configura o Resend
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -31,40 +27,47 @@ def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', '_', name)
 
 def send_email_thread(bl, txt_filename, txt_content, links_text, consignee):
-    """Envia e-mail em segundo plano para não travar o site"""
-    if not all([EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECEIVER]):
-        print("⚠️ E-mail não configurado.")
+    """Envia e-mail via RESEND em segundo plano"""
+    if not RESEND_API_KEY:
+        print("⚠️ Resend API Key não configurada.")
         return
 
     try:
-        msg = MIMEMultipart()
-        msg['From'] = EMAIL_SENDER
-        msg['To'] = EMAIL_RECEIVER
-        msg['Subject'] = f"NOVO DISPUTE: {bl}"
+        # Monta o corpo do e-mail
+        email_body = f"""
+NOVA SOLICITAÇÃO DE DISPUTE RECEBIDA
 
-        body = f"BL: {bl}\nConsignee: {consignee}\n\nARQUIVOS:\n{links_text}\n\n(Veja anexo para detalhes)"
-        msg.attach(MIMEText(body, 'plain'))
+BL/Container: {bl}
+Consignee: {consignee}
 
-        part = MIMEBase('application', "octet-stream")
-        part.set_payload(txt_content.encode('utf-8'))
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="{txt_filename}"')
-        msg.attach(part)
+ARQUIVOS ANEXADOS (Links):
+{links_text}
 
-        # --- CONFIGURAÇÃO OUTLOOK ---
-        server = smtplib.SMTP('smtp.office365.com', 587)
-        server.starttls() # Importante para Outlook
-        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-        server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
-        server.quit()
-        print(f"✅ E-mail enviado para {EMAIL_RECEIVER}")
+(Veja o arquivo TXT anexo para todos os detalhes preenchidos)
+        """
+
+        # Envia usando Resend
+        r = resend.Emails.send({
+            "from": "onboarding@resend.dev", # E-mail padrão de testes do Resend
+            "to": EMAIL_RECEIVER,
+            "subject": f"📢 NOVO DISPUTE: {bl}",
+            "text": email_body,
+            "attachments": [
+                # O Resend pede o conteúdo do anexo como uma lista de números (bytes)
+                {
+                    "filename": txt_filename,
+                    "content": list(txt_content.encode('utf-8'))
+                }
+            ]
+        })
+        print(f"✅ E-mail enviado via Resend! ID: {r.get('id')}")
 
     except Exception as e:
-        print(f"❌ FALHA NO E-MAIL: {e}")
+        print(f"❌ FALHA NO RESEND: {e}")
 
 @app.route('/')
 def health_check():
-    return jsonify({"status": "API online (Outlook)"}), 200
+    return jsonify({"status": "API online (Resend)"}), 200
 
 @app.route('/api/formulario', methods=['POST', 'OPTIONS'])
 @cross_origin()
@@ -95,7 +98,7 @@ def handle_form():
         txt_filename = f"{bl_clean}-RESUMO-{submission_id}.txt"
         supabase.storage.from_(bucket_name).upload(txt_filename, txt_content.encode('utf-8'), file_options={"content-type": "text/plain"})
 
-        # Inicia o envio de e-mail em paralelo (sem travar a resposta)
+        # Dispara o envio em segundo plano
         threading.Thread(target=send_email_thread, args=(bl_clean, txt_filename, txt_content, links_text, data.get('consigneeData'))).start()
 
         return jsonify({"mensagem": "Recebido com sucesso!"}), 201
