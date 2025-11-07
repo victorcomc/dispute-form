@@ -47,7 +47,7 @@ function App() {
       }
 
       // Lembre-se de alterar para a URL de produção quando subir para o Render
-      const response = await axios.post('http://127.0.0.1:5000/api/formulario', formData, {
+      const response = await axios.post('https://dispute-backend.onrender.com/api/formulario', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
