@@ -51,7 +51,7 @@ function App() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setFeedbackMessage(`Sucesso! Formulário enviado. Arquivo: ${response.data.dados.arquivo_url}`);
+      setFeedbackMessage('Sucesso! Formulário enviado. Obrigado.');
       
       // Limpar formulário
       setConsigneeData(''); setRequestReason(''); setBlContainer('');
