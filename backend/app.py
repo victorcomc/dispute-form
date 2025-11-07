@@ -2,6 +2,7 @@ import os
 import uuid
 import re
 import smtplib
+import threading
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -14,15 +15,12 @@ from supabase import create_client, Client
 
 load_dotenv()
 
-# --- Configurações de Ambiente ---
+# --- Variáveis de Ambiente ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
-
-if not all([SUPABASE_URL, SUPABASE_KEY]):
-    raise EnvironmentError("Variáveis do Supabase não definidas.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -32,9 +30,10 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', '_', name)
 
-def send_email_notification(bl, txt_filename, txt_content, links_text, submission_data):
+def send_email_thread(bl, txt_filename, txt_content, links_text, consignee):
+    """Envia e-mail em segundo plano para não travar o site"""
     if not all([EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECEIVER]):
-        print("⚠️ Pulei o envio de e-mail: Credenciais não configuradas.")
+        print("⚠️ E-mail não configurado.")
         return
 
     try:
@@ -43,17 +42,7 @@ def send_email_notification(bl, txt_filename, txt_content, links_text, submissio
         msg['To'] = EMAIL_RECEIVER
         msg['Subject'] = f"NOVO DISPUTE: {bl}"
 
-        body = f"""
-Nova solicitação recebida.
-
-BL/Container: {bl}
-Consignee: {submission_data.get('consigneeData')}
-
-ARQUIVOS:
-{links_text}
-
--> Detalhes completos no arquivo TXT anexo.
-        """
+        body = f"BL: {bl}\nConsignee: {consignee}\n\nARQUIVOS:\n{links_text}\n\n(Veja anexo para detalhes)"
         msg.attach(MIMEText(body, 'plain'))
 
         part = MIMEBase('application', "octet-stream")
@@ -62,23 +51,20 @@ ARQUIVOS:
         part.add_header('Content-Disposition', f'attachment; filename="{txt_filename}"')
         msg.attach(part)
 
-        # --- CONFIGURAÇÃO MICROSOFT (Office 365 / Outlook) ---
-        # Usa a porta 587 com STARTTLS
+        # --- CONFIGURAÇÃO OUTLOOK ---
         server = smtplib.SMTP('smtp.office365.com', 587)
-        server.starttls() # Inicia a criptografia
+        server.starttls() # Importante para Outlook
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
         server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
         server.quit()
-        print(f"📧 E-mail enviado via Microsoft para {EMAIL_RECEIVER}!")
+        print(f"✅ E-mail enviado para {EMAIL_RECEIVER}")
 
     except Exception as e:
-        print(f"❌ Erro ao enviar e-mail Microsoft: {e}")
-        # Se der erro de autenticação, provavelmente o SMTP está bloqueado na empresa.
+        print(f"❌ FALHA NO E-MAIL: {e}")
 
-# --- Rotas ---
 @app.route('/')
 def health_check():
-    return jsonify({"status": "API online", "servico": "Supabase + MS Email"}), 200
+    return jsonify({"status": "API online (Outlook)"}), 200
 
 @app.route('/api/formulario', methods=['POST', 'OPTIONS'])
 @cross_origin()
@@ -89,7 +75,7 @@ def handle_form():
     try:
         data = request.form
         files = request.files.getlist('arquivo')
-        if not files or len(files) == 0: return jsonify({"erro": "Sem arquivos"}), 400
+        if not files: return jsonify({"erro": "Sem arquivos"}), 400
 
         bl_clean = sanitize_filename(data.get('blContainer', 'SEM-BL').strip().upper())
         submission_id = str(uuid.uuid4())[:8]
@@ -98,9 +84,10 @@ def handle_form():
 
         for i, file in enumerate(files, start=1):
             if file.filename == '': continue
-            new_filename = f"{bl_clean}-ARQ-{i}-{submission_id}{os.path.splitext(file.filename)[1].lower()}"
-            supabase.storage.from_(bucket_name).upload(new_filename, file.read(), file_options={"content-type": file.content_type})
-            uploaded_links.append(supabase.storage.from_(bucket_name).get_public_url(new_filename))
+            ext = os.path.splitext(file.filename)[1].lower()
+            new_name = f"{bl_clean}-ARQ-{i}-{submission_id}{ext}"
+            supabase.storage.from_(bucket_name).upload(new_name, file.read(), file_options={"content-type": file.content_type})
+            uploaded_links.append(supabase.storage.from_(bucket_name).get_public_url(new_name))
 
         links_text = "\n".join(uploaded_links)
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -108,12 +95,13 @@ def handle_form():
         txt_filename = f"{bl_clean}-RESUMO-{submission_id}.txt"
         supabase.storage.from_(bucket_name).upload(txt_filename, txt_content.encode('utf-8'), file_options={"content-type": "text/plain"})
 
-        send_email_notification(bl_clean, txt_filename, txt_content, links_text, data)
+        # Inicia o envio de e-mail em paralelo (sem travar a resposta)
+        threading.Thread(target=send_email_thread, args=(bl_clean, txt_filename, txt_content, links_text, data.get('consigneeData'))).start()
 
-        return jsonify({"mensagem": "OK"}), 201
+        return jsonify({"mensagem": "Recebido com sucesso!"}), 201
 
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"Erro crítico: {e}")
         return jsonify({"erro": str(e)}), 500
 
 if __name__ == '__main__':
