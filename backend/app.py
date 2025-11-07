@@ -1,5 +1,6 @@
 import os
 import uuid
+import re
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
@@ -19,9 +20,13 @@ supabase: Client = create_client(url, key)
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+def sanitize_filename(name):
+    """Remove caracteres perigosos para nomes de arquivos (como / ou \)"""
+    return re.sub(r'[\\/*?:"<>|]', '_', name)
+
 @app.route('/')
 def health_check():
-    return jsonify({"status": "API online", "servico": "Supabase Upload"}), 200
+    return jsonify({"status": "API online", "servico": "Supabase Upload Multiplo"}), 200
 
 @app.route('/api/formulario', methods=['POST', 'OPTIONS'])
 @cross_origin()
@@ -30,85 +35,79 @@ def handle_form():
         return jsonify({'status': 'ok'}), 200
 
     try:
-        # 1. Receber os dados
         data = request.form
-        file = request.files.get('arquivo')
+        # MUDANÇA 1: Usamos .getlist para pegar TODOS os arquivos enviados
+        files = request.files.getlist('arquivo')
         
-        if not file or file.filename == '':
-            return jsonify({"erro": "Arquivo obrigatório não enviado"}), 400
+        if not files or len(files) == 0:
+             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
 
-        # 2. Gerar um ID único para esta submissão (usaremos para os dois arquivos)
-        submission_id = str(uuid.uuid4())
+        # Pega o BL e limpa ele para usar no nome do arquivo
+        bl_raw = data.get('blContainer', 'SEM-BL')
+        bl_clean = sanitize_filename(bl_raw.strip().upper())
+
+        # ID curto para evitar sobrescrita se mandarem o mesmo BL duas vezes
+        submission_id = str(uuid.uuid4())[:8]
         bucket_name = "uploads"
-
-        # --- PASSO A: Upload do Arquivo Anexado ---
-        # Nome ex: "d9f8c7...-ANEXO-Proposta.pdf"
-        attachment_filename = f"{submission_id}-ANEXO-{file.filename}"
-        file_content = file.read()
         
-        supabase.storage.from_(bucket_name).upload(
-            path=attachment_filename,
-            file=file_content,
-            file_options={"content-type": file.content_type}
-        )
-        # Pega o link público do anexo
-        attachment_url = supabase.storage.from_(bucket_name).get_public_url(attachment_filename)
+        uploaded_links = []
 
-        # --- PASSO B: Gerar e Upload do TXT ---
-        # Cria o conteúdo do texto
+        # MUDANÇA 2: Loop para salvar cada arquivo
+        for i, file in enumerate(files, start=1):
+            if file.filename == '':
+                continue
+            
+            # Pega a extensão original (.pdf, .png)
+            extension = os.path.splitext(file.filename)[1].lower()
+            # Cria o novo nome: BL + Sequencia + ID curto + Extensão
+            # Ex: MSCU12345-ARQUIVO-1-a9f8b7.pdf
+            new_filename = f"{bl_clean}-ARQUIVO-{i}-{submission_id}{extension}"
+            
+            file_content = file.read()
+            supabase.storage.from_(bucket_name).upload(
+                path=new_filename,
+                file=file_content,
+                file_options={"content-type": file.content_type}
+            )
+            link = supabase.storage.from_(bucket_name).get_public_url(new_filename)
+            uploaded_links.append(link)
+
+        # --- Gerar TXT com Resumo ---
+        links_text = "\n".join(uploaded_links)
         timestamp = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        
         txt_content = f"""
-REGISTRO DE SOLICITAÇÃO DE DISPUTE
-ID: {submission_id}
-Data de Recebimento: {timestamp}
+REGISTRO DE DISPUTE - {bl_clean}
+ID Controle: {submission_id}
+Data: {timestamp}
 ===================================
+BL / CONTAINER: {data.get('blContainer')}
+CONSIGNEE: {data.get('consigneeData')}
+MOTIVO: {data.get('requestReason')}
+FREE TIME: {data.get('freeTimeGranted')}
+DESCARGA: {data.get('dischargeDate')}
+1ª TENTATIVA: {data.get('firstReturnAttemptDate') or 'N/A'}
+DEVOLUÇÃO: {data.get('containerReturnDate')}
+TERMINAL: {data.get('returnTerminalCity')}
 
-1. Dados do Consignee:
-{data.get('consigneeData')}
-
-2. Motivo da Solicitação:
-{data.get('requestReason')}
-
-3. BL / Container:
-{data.get('blContainer')}
-
-4. Free Time Concedido:
-{data.get('freeTimeGranted')}
-
-5. Data da Descarga:
-{data.get('dischargeDate')}
-
-6. Data da Primeira Tentativa da Devolução:
-{data.get('firstReturnAttemptDate') or 'Não informada'}
-
-7. Data da Devolução do Container:
-{data.get('containerReturnDate')}
-
-8. Terminal de Devolução:
-{data.get('returnTerminalCity')}
-
-9. Link do Arquivo Anexado:
-{attachment_url}
-
-10. Resumo da Ocorrência:
+RESUMO DA OCORRÊNCIA:
 {data.get('occurrenceSummary')}
+
+===================================
+ARQUIVOS ANEXADOS ({len(uploaded_links)}):
+{links_text}
         """
 
-        # Nome ex: "d9f8c7...-RESPOSTAS.txt"
-        txt_filename = f"{submission_id}-RESPOSTAS.txt"
+        # Nome do TXT também usa o BL
+        txt_filename = f"{bl_clean}-RESUMO-{submission_id}.txt"
         
-        # Faz o upload do texto diretamente como arquivo
         supabase.storage.from_(bucket_name).upload(
             path=txt_filename,
-            file=txt_content.encode('utf-8'), # Converte o texto para bytes
+            file=txt_content.encode('utf-8'),
             file_options={"content-type": "text/plain"}
         )
 
-        print(f"Sucesso! Registro criado: {txt_filename}")
-
-        return jsonify({
-            "mensagem": "Formulário recebido com sucesso!"
-        }), 201
+        return jsonify({"mensagem": f"Recebidos {len(files)} arquivos com sucesso!"}), 201
 
     except Exception as e:
         print(f"Erro no servidor: {e}")
