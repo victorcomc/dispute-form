@@ -303,3 +303,55 @@ textarea.input-field:focus {
 .remove-file-btn:hover {
   color: #d13438; /* Vermelho mais vibrante no hover */
 }
+
+/* --- Tela de Sucesso --- */
+.success-view {
+  padding: 60px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px; /* Altura mínima para ficar bonito na tela */
+}
+
+.success-icon {
+  font-size: 64px;
+  color: #107c10; /* Verde Microsoft */
+  margin-bottom: 24px;
+}
+
+.success-title {
+  font-size: 28px;
+  color: #4A2100;
+  margin-bottom: 16px;
+}
+
+.success-desc {
+  font-size: 16px;
+  color: #605e5c;
+  max-width: 500px;
+  margin-bottom: 40px;
+  line-height: 1.5;
+}
+
+.new-dispute-btn {
+  background-color: #4A2100;
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-dispute-btn:hover {
+  background-color: #381900;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
