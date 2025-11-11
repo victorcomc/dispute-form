@@ -1,16 +1,10 @@
-# Ignorar pastas virtuais do Python
 venv/
 .venv/
 __pycache__/
-
-# Ignorar dependências gigantes do Node (Frontend)
 node_modules/
 dist/
-
-# IMPORTANTE: Ignorar arquivos com senhas
 .env
 .env.local
-
-# Outros lixos do sistema
 .DS_Store
 Thumbs.db
+frontend/.env

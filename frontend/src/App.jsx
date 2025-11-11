@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { supabase } from './supabaseClient'; // Importa o cliente Supabase
 import './App.css';
 
+// Função para limpar nomes de arquivos para URLs
+const sanitizeFilename = (filename) => {
+  return filename.replace(/[^a-zA-Z0-9-._]/g, '_');
+};
+
 function App() {
-  // Estados dos campos
+  // ... (todos os seus 'useState' para campos de formulário ficam iguais)
   const [consigneeData, setConsigneeData] = useState('');
   const [requestReason, setRequestReason] = useState('');
   const [blContainer, setBlContainer] = useState('');
@@ -15,19 +21,16 @@ function App() {
   const [occurrenceSummary, setOccurrenceSummary] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
 
-  // Estados de controle da interface
   const [loading, setLoading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isError, setIsError] = useState(false);
-  
-  // NOVO: Estado para controlar qual tela mostrar
   const [showSuccessPage, setShowSuccessPage] = useState(false);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       setAttachedFiles(prevFiles => [...prevFiles, ...newFiles]);
-      e.target.value = null; 
+      e.target.value = null;
     }
   };
 
@@ -35,17 +38,18 @@ function App() {
     setAttachedFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
   };
 
-  // Função para resetar tudo e voltar ao formulário
   const handleResetForm = () => {
+    // ... (função igual)
     setConsigneeData(''); setRequestReason(''); setBlContainer('');
     setFreeTimeGranted(''); setDischargeDate(''); setFirstReturnAttemptDate('');
     setContainerReturnDate(''); setReturnTerminalCity(''); setOccurrenceSummary('');
     setAttachedFiles([]);
     setFeedbackMessage('');
     setIsError(false);
-    setShowSuccessPage(false); // Volta para a tela do formulário
+    setShowSuccessPage(false);
   };
 
+  // --- NOVO HANDLESUBMIT ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (attachedFiles.length === 0) {
@@ -54,49 +58,75 @@ function App() {
     }
 
     setLoading(true);
-    setFeedbackMessage('');
     setIsError(false);
+    setFeedbackMessage('Iniciando envio...');
+
+    const submissionId = crypto.randomUUID(); // ID único para esta pasta
+    const blClean = sanitizeFilename(blContainer || 'SEM-BL');
 
     try {
-      const formData = new FormData();
-      formData.append('consigneeData', consigneeData);
-      formData.append('requestReason', requestReason);
-      formData.append('blContainer', blContainer);
-      formData.append('freeTimeGranted', freeTimeGranted);
-      formData.append('dischargeDate', dischargeDate);
-      formData.append('firstReturnAttemptDate', firstReturnAttemptDate);
-      formData.append('containerReturnDate', containerReturnDate);
-      formData.append('returnTerminalCity', returnTerminalCity);
-      formData.append('occurrenceSummary', occurrenceSummary);
+      // --- PASSO A: FAZ UPLOAD DIRETO DOS ARQUIVOS ---
+      setFeedbackMessage(`Enviando ${attachedFiles.length} arquivo(s)...`);
       
-      attachedFiles.forEach((file) => {
-        formData.append('arquivo', file);
+      const uploadPromises = attachedFiles.map((file, index) => {
+        const cleanFileName = sanitizeFilename(file.name);
+        // Cria um caminho de pasta único para esta submissão
+        const filePath = `${blClean}/${submissionId}/ARQ-${index + 1}-${cleanFileName}`;
+        
+        return supabase.storage
+          .from('uploads') // Nome do seu bucket
+          .upload(filePath, file);
       });
 
-      // URL de produção
-      await axios.post('https://dispute-backend.onrender.com/api/formulario', formData, {
-         headers: { 'Content-Type': 'multipart/form-data' },
+      const uploadResults = await Promise.all(uploadPromises);
+
+      // Verifica se houve erro em algum upload
+      const uploadErrors = uploadResults.filter(result => result.error);
+      if (uploadErrors.length > 0) {
+        console.error("Erro em um ou mais uploads:", uploadErrors);
+        throw new Error('Falha ao enviar um ou mais arquivos.');
+      }
+
+      // Pega os links públicos de todos os arquivos enviados
+      const publicUrls = uploadResults.map(result => {
+        const { data } = supabase.storage.from('uploads').getPublicUrl(result.data.path);
+        return data.publicUrl;
       });
 
-      // SUCESSO! Mostra a nova tela
+      // --- PASSO B: ENVIA SÓ O TEXTO E OS LINKS PARA O BACKEND ---
+      setFeedbackMessage('Finalizando registro...');
+
+      const textData = {
+        consigneeData, requestReason, blContainer, freeTimeGranted,
+        dischargeDate, firstReturnAttemptDate, containerReturnDate,
+        returnTerminalCity, occurrenceSummary,
+        fileUrls: publicUrls // Envia a lista de URLs prontas
+      };
+
+      // URL de produção do Render
+      await axios.post('https://dispute-backend.onrender.com/api/formulario', textData, {
+         // Agora enviamos JSON, não FormData
+         headers: { 'Content-Type': 'application/json' },
+      });
+
+      // SUCESSO!
       setShowSuccessPage(true);
 
     } catch (error) {
       console.error('Erro no envio:', error);
       setIsError(true);
-      setFeedbackMessage('Erro ao enviar. Tente novamente.');
+      setFeedbackMessage(error.message || 'Erro ao enviar. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
+  // --- (O resto do seu JSX 'return' continua igual) ---
   return (
     <div className="app-background">
       <div className="form-container">
         
-        {/* --- RENDERIZAÇÃO CONDICIONAL --- */}
         {showSuccessPage ? (
-          // TELA DE SUCESSO
           <div className="success-view">
             <div className="success-icon">✅</div>
             <h2 className="success-title">Solicitação Enviada!</h2>
@@ -109,7 +139,6 @@ function App() {
             </button>
           </div>
         ) : (
-          // TELA DO FORMULÁRIO NORMAL
           <>
             <header className="form-header">
               <div className="logo-area">
@@ -123,51 +152,26 @@ function App() {
               <p className="required-indicator">* Obrigatória</p>
 
               <form onSubmit={handleSubmit}>
-                {/* Seção 1 */}
+                {/* ... (Todas as seções do formulário iguais) ... */}
                 <section className="form-section">
                   <h3 className="section-title">Informações Gerais:</h3>
-                  <div className="question-block">
-                    <label className="question-label">1. Dados do Consignee conforme BL: <span className="req">*</span></label>
-                    <textarea className="input-field" value={consigneeData} onChange={(e) => setConsigneeData(e.target.value)} required rows="2" />
-                  </div>
-                  <div className="question-block">
-                    <label className="question-label">2. Motivo da Solicitação: <span className="req">*</span></label>
-                    <textarea className="input-field" value={requestReason} onChange={(e) => setRequestReason(e.target.value)} required rows="2" />
-                  </div>
-                  <div className="question-block">
-                    <label className="question-label">3. BL / Container: <span className="req">*</span></label>
-                    <input type="text" className="input-field" value={blContainer} onChange={(e) => setBlContainer(e.target.value)} required />
-                  </div>
+                  {/* ... campos 1, 2, 3 ... */}
+                  <div className="question-block"><label className="question-label">1. Dados do Consignee conforme BL: <span className="req">*</span></label><textarea className="input-field" value={consigneeData} onChange={(e) => setConsigneeData(e.target.value)} required rows="2" /></div>
+                  <div className="question-block"><label className="question-label">2. Motivo da Solicitação: <span className="req">*</span></label><textarea className="input-field" value={requestReason} onChange={(e) => setRequestReason(e.target.value)} required rows="2" /></div>
+                  <div className="question-block"><label className="question-label">3. BL / Container: <span className="req">*</span></label><input type="text" className="input-field" value={blContainer} onChange={(e) => setBlContainer(e.target.value)} required /></div>
                 </section>
-
-                {/* Seção 2 */}
                 <section className="form-section">
                   <h3 className="section-title">Detalhes da Operação:</h3>
-                  <div className="question-block">
-                    <label className="question-label">4. Free Time Concedido: <span className="req">*</span></label>
-                    <input type="text" className="input-field" value={freeTimeGranted} onChange={(e) => setFreeTimeGranted(e.target.value)} required />
-                  </div>
-                  <div className="question-block">
-                    <label className="question-label">5. Data da Descarga: <span className="req">*</span></label>
-                    <input type="date" className="input-field" value={dischargeDate} onChange={(e) => setDischargeDate(e.target.value)} required />
-                  </div>
-                  <div className="question-block">
-                    <label className="question-label">6. Data da Primeira Tentativa da Devolução (se aplicável):</label>
-                    <input type="date" className="input-field" value={firstReturnAttemptDate} onChange={(e) => setFirstReturnAttemptDate(e.target.value)} />
-                  </div>
-                  <div className="question-block">
-                    <label className="question-label">7. Data da Devolução do Container: <span className="req">*</span></label>
-                    <input type="date" className="input-field" value={containerReturnDate} onChange={(e) => setContainerReturnDate(e.target.value)} required />
-                  </div>
-                  <div className="question-block">
-                    <label className="question-label">8. Terminal de Devolução (Nome e Cidade): <span className="req">*</span></label>
-                    <input type="text" className="input-field" value={returnTerminalCity} onChange={(e) => setReturnTerminalCity(e.target.value)} required />
-                  </div>
+                  {/* ... campos 4, 5, 6, 7, 8 ... */}
+                  <div className="question-block"><label className="question-label">4. Free Time Concedido: <span className="req">*</span></label><input type="text" className="input-field" value={freeTimeGranted} onChange={(e) => setFreeTimeGranted(e.target.value)} required /></div>
+                  <div className="question-block"><label className="question-label">5. Data da Descarga: <span className="req">*</span></label><input type="date" className="input-field" value={dischargeDate} onChange={(e) => setDischargeDate(e.target.value)} required /></div>
+                  <div className="question-block"><label className="question-label">6. Data da Primeira Tentativa da Devolução (se aplicável):</label><input type="date" className="input-field" value={firstReturnAttemptDate} onChange={(e) => setFirstReturnAttemptDate(e.target.value)} /></div>
+                  <div className="question-block"><label className="question-label">7. Data da Devolução do Container: <span className="req">*</span></label><input type="date" className="input-field" value={containerReturnDate} onChange={(e) => setContainerReturnDate(e.target.value)} required /></div>
+                  <div className="question-block"><label className="question-label">8. Terminal de Devolução (Nome e Cidade): <span className="req">*</span></label><input type="text" className="input-field" value={returnTerminalCity} onChange={(e) => setReturnTerminalCity(e.target.value)} required /></div>
                 </section>
-
-                {/* Seção 3 */}
                 <section className="form-section">
                   <h3 className="section-title">Informações da Devolução:</h3>
+                  {/* ... campo 9 (upload) ... */}
                   <div className="question-block">
                     <label className="question-label">9. Anexar Evidências (Você pode adicionar vários arquivos): <span className="req">*</span></label>
                     <div className="file-upload-wrapper">
@@ -185,6 +189,7 @@ function App() {
                       )}
                     </div>
                   </div>
+                  {/* ... campo 10 ... */}
                   <div className="question-block">
                     <label className="question-label">10. Breve Resumo da Ocorrência: <span className="req">*</span></label>
                     <textarea className="input-field" value={occurrenceSummary} onChange={(e) => setOccurrenceSummary(e.target.value)} required rows="4" />
@@ -193,9 +198,11 @@ function App() {
 
                 <div className="submit-area">
                   <button type="submit" className="submit-btn" disabled={loading || attachedFiles.length === 0}>
-                    {loading ? 'Enviando...' : 'Enviar'}
+                    {loading ? (feedbackMessage || 'Enviando...') : 'Enviar'}
                   </button>
-                  {attachedFiles.length === 0 && <p style={{fontSize: '12px', color: '#a4262c', marginTop: '8px'}}>* Anexe pelo menos um arquivo para enviar.</p>}
+                  {/* ... (mensagem de erro anexa) ... */}
+                  {attachedFiles.length === 0 && !loading && <p style={{fontSize: '12px', color: '#a4262c', marginTop: '8px'}}>* Anexe pelo menos um arquivo para enviar.</p>}
+                  {loading && <p style={{fontSize: '14px', color: '#333', marginTop: '10px'}}>{feedbackMessage}</p>}
                 </div>
               </form>
 
