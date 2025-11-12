@@ -33,12 +33,12 @@ def send_email_thread(bl, txt_filename, txt_content, links_text, consignee):
         return
 
     try:
-        email_body = f"BL: {bl}\nConsignee: {consignee}\n\nARQUIVOS:\n{links_text}\n\n(Veja anexo para detalhes)"
+        email_body = f"BL: {bl}\nConceitual: {consignee}\n\nARQUIVOS:\n{links_text}\n\n(Veja anexo para detalhes)"
         
         r = resend.Emails.send({
             "from": "onboarding@resend.dev",
             "to": EMAIL_RECEIVER,
-            "subject": f"📢 NOVO DISPUTE BL: {bl}", # ASSUNTO ATUALIZADO
+            "subject": f"📢 NOVO DISPUTE BL: {bl}",
             "text": email_body,
             "attachments": [
                 {
@@ -82,7 +82,9 @@ def handle_form():
             ext = os.path.splitext(file.filename)[1].lower()
             new_name = f"{bl_clean}-ARQ-{i}-{submission_id}{ext}"
             supabase.storage.from_(bucket_name).upload(new_name, file.read(), file_options={"content-type": file.content_type})
-            uploaded_links.append(supabase.storage.from_(bucket_name).getPublicUrl(new_name))
+            
+            # --- CORREÇÃO AQUI: Renomeado para get_public_url ---
+            uploaded_links.append(supabase.storage.from_(bucket_name).get_public_url(new_name))
 
         links_text = "\n".join(uploaded_links)
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
