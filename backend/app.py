@@ -18,7 +18,7 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-resend.api_key = RESEND_API_KEY
+resend.api_key = RESEND_API_KEY 
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -27,25 +27,34 @@ def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', '_', name)
 
 def send_email_thread(bl, txt_filename, txt_content, links_text, consignee):
+    """Envia e-mail via RESEND em segundo plano"""
     if not RESEND_API_KEY:
         print("⚠️ Resend API Key não configurada.")
         return
+
     try:
         email_body = f"BL: {bl}\nConsignee: {consignee}\n\nARQUIVOS:\n{links_text}\n\n(Veja anexo para detalhes)"
+        
         r = resend.Emails.send({
             "from": "onboarding@resend.dev",
             "to": EMAIL_RECEIVER,
-            "subject": f"📢 NOVO DISPUTE: {bl}",
+            "subject": f"📢 NOVO DISPUTE BL: {bl}", # ASSUNTO ATUALIZADO
             "text": email_body,
-            "attachments": [{"filename": txt_filename, "content": list(txt_content.encode('utf-8'))}]
+            "attachments": [
+                {
+                    "filename": txt_filename,
+                    "content": list(txt_content.encode('utf-8'))
+                }
+            ]
         })
-        print(f"✅ E-mail enviado via Resend! ID: {r.get('id')}")
+        print(f"✅ E-mail enviado via Resend!")
+
     except Exception as e:
         print(f"❌ FALHA NO RESEND: {e}")
 
 @app.route('/')
 def health_check():
-    return jsonify({"status": "API online (Direct Upload Mode)"}), 200
+    return jsonify({"status": "API online (Resend)"}), 200
 
 @app.route('/api/formulario', methods=['POST', 'OPTIONS'])
 @cross_origin()
@@ -54,53 +63,50 @@ def handle_form():
         return jsonify({'status': 'ok'}), 200
 
     try:
-        # --- MUDANÇA 1: Lendo JSON em vez de FormData ---
-        data = request.json
-        if not data:
-            return jsonify({"erro": "Nenhum dado JSON recebido"}), 400
+        data = request.form
+        files = request.files.getlist('arquivo')
+        if not files: return jsonify({"erro": "Sem arquivos"}), 400
 
-        bl_clean = sanitize_filename(data.get('blContainer', 'SEM-BL').strip().upper())
+        # NOVOS CAMPOS LIDOS AQUI
+        bl_raw = data.get('bl', 'SEM-BL')
+        container_info = data.get('containerInfo', 'N/A')
+        
+        bl_clean = sanitize_filename(bl_raw.strip().upper())
         submission_id = str(uuid.uuid4())[:8]
         bucket_name = "uploads"
+        uploaded_links = []
 
-        # --- MUDANÇA 2: Não fazemos mais upload de anexos aqui! ---
-        # Apenas pegamos os links que o frontend já enviou
-        file_urls = data.get('fileUrls', [])
-        links_text = "\n".join(file_urls) if file_urls else "Nenhum link recebido."
-        
-        # --- MUDANÇA 3: Geramos o TXT ---
+        # ... (Upload dos arquivos continua igual)
+        for i, file in enumerate(files, start=1):
+            if file.filename == '': continue
+            ext = os.path.splitext(file.filename)[1].lower()
+            new_name = f"{bl_clean}-ARQ-{i}-{submission_id}{ext}"
+            supabase.storage.from_(bucket_name).upload(new_name, file.read(), file_options={"content-type": file.content_type})
+            uploaded_links.append(supabase.storage.from_(bucket_name).getPublicUrl(new_name))
+
+        links_text = "\n".join(uploaded_links)
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
+        
+        # --- TXT ATUALIZADO ---
         txt_content = f"""REGISTRO - {bl_clean}\nData: {timestamp}\n
-BL: {data.get('blContainer')}
+BL: {bl_raw}
+INFORMAÇÕES DO CONTAINER: {container_info}
 CONSIGNEE: {data.get('consigneeData')}
 MOTIVO: {data.get('requestReason')}
 FREE TIME: {data.get('freeTimeGranted')}
-DESCARGA: {data.get('dischargeDate')}
+DESCARGA: {data.get('dischargeDate')}\n
 1a TENTATIVA: {data.get('firstReturnAttemptDate')}
 DEVOLUÇÃO: {data.get('containerReturnDate')}
 TERMINAL: {data.get('returnTerminalCity')}
 
-RESUMO:
-{data.get('occurrenceSummary')}
-
-LINKS DOS ARQUIVOS (Upload Direto):
-{links_text}
-"""
+RESUMO:\n{data.get('occurrenceSummary')}
+LINKS:\n{links_text}"""
         txt_filename = f"{bl_clean}-RESUMO-{submission_id}.txt"
-        
-        # O backend SÓ faz o upload do TXT
-        supabase.storage.from_(bucket_name).upload(
-            path=f"{bl_clean}/{submission_id}/{txt_filename}", # Salva na mesma pasta
-            file=txt_content.encode('utf-8'),
-            file_options={"content-type": "text/plain"}
-        )
+        supabase.storage.from_(bucket_name).upload(txt_filename, txt_content.encode('utf-8'), file_options={"content-type": "text/plain"})
 
-        # --- MUDANÇA 4: Dispara o e-mail (como antes) ---
-        threading.Thread(target=send_email_thread, args=(
-            bl_clean, txt_filename, txt_content, links_text, data.get('consigneeData')
-        )).start()
+        threading.Thread(target=send_email_thread, args=(bl_clean, txt_filename, txt_content, links_text, data.get('consigneeData'))).start()
 
-        return jsonify({"mensagem": "Registro finalizado com sucesso!"}), 201
+        return jsonify({"mensagem": "Recebido com sucesso!"}), 201
 
     except Exception as e:
         print(f"Erro crítico: {e}")
