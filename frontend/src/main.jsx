@@ -1,14 +1,12 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
-// import './index.css' // <-- Pode remover ou comentar o CSS global antigo se ele estiver atrapalhando
-import { CssBaseline, ThemeProvider } from '@mui/material';
+
+// IMPORTANTE: Removemos a importação do './theme' e a estrutura do Material UI
+// para evitar erros de dependência não resolvida.
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* Normaliza o CSS e aplica a cor de fundo global */}
-      <App />
-    </ThemeProvider>
+    <App /> {/* Renderiza diretamente o componente principal */}
   </React.StrictMode>,
 )
