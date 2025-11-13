@@ -1,138 +1,130 @@
-/* --- Reset e Estrutura Global --- */
+/* --- Cores HEVILE --- */
 :root {
-  font-family: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --hevile-blue: #4f758b;
+  --hevile-orange: #ff671f;
+  --color-text: #252423;
+  --color-light-background: #FAF9F8;
+  --color-input-background: #f3f2f1;
+  --color-error: #a4262c;
 }
 
+/* Reset básico e Tipografia Padrão */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
-  width: 100%;
-  min-height: 100vh;
-}
-
 body {
-  background-color: #FF6A00; /* Laranja vibrante do fundo */
-  color: #333;
+  font-family: 'Work Sans', sans-serif;
+  color: var(--color-text);
 }
 
-/* --- Container Principal (Fundo Laranja) --- */
+/* --- 
+  ALTERAÇÃO: Fundo da página agora é Laranja Sólido.
+--- */
 .app-background {
-  width: 100%;
   min-height: 100vh;
+  width: 100%;
   display: flex;
-  justify-content: center; /* CENTRALIZA HORIZONTALMENTE */
-  align-items: flex-start; /* Alinha no topo (melhor para forms longos) */
-  padding: 40px 20px; /* Um pouco mais de espaço em cima e embaixo */
-  background-color: #FF6A00;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  
+  background-color: var(--hevile-orange); /* Fundo Laranja */
 }
 
-/* --- Cartão do Formulário --- */
 .form-container {
   width: 100%;
-  max-width: 768px; /* Largura padrão do MS Forms */
-  background-color: #FAF9F8; /* Bege clarinho */
-  box-shadow: 0 4px 30px rgba(0,0,0,0.15); /* Sombra mais suave e difusa */
-  border-radius: 12px; /* BORDAS ARREDONDADAS AQUI */
-  overflow: hidden; /* Garante que o header não corte as bordas arredondadas */
+  max-width: 768px;
+  background-color: var(--color-light-background);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-/* --- Header --- */
+/* --- 
+  ALTERAÇÃO: Cabeçalho com fundo Azul.
+--- */
 .form-header {
-  background-color: #4A2100;
-  color: white;
+  background-color: var(--hevile-blue); /* Fundo Azul */
+  color: white; /* Cor padrão (para a descrição) */
   padding: 24px 32px;
-  border-bottom: none; /* Removi a borda para ficar mais limpo como o original */
+  line-height: 1.5; /* Altura de linha normal */
 }
 
-.logo-area {
-  margin-bottom: 20px;
-}
-
+/* Logo volta ao normal (pequena) */
 .header-logo {
-  max-height: 55px; /* Ajustado levemente */
-  width: auto;
+  width: auto; /* Largura automática */
+  height: auto;
+  display: block;
+  max-height: 55px; /* Altura máxima pequena */
   object-fit: contain;
-  display: block; /* Garante que não tenha espaço extra embaixo da imagem */
 }
 
+/* --- 
+  ALTERAÇÃO: Título (H1) agora é Branco
+--- */
 .form-header h1 {
   font-size: 26px;
-  font-weight: 600;
-  margin-bottom: 16px;
+  font-weight: 700;
   letter-spacing: -0.5px;
+  padding: 0; /* Remove padding extra */
+  margin-top: 20px; /* Espaço abaixo do logo */
+  margin-bottom: 16px;
+  line-height: 1.2;
+  color: white; /* Título Branco */
 }
 
+/* --- 
+  ALTERAÇÃO: Subtítulo (Descrição) agora é Branco
+--- */
 .header-desc {
   font-size: 14px;
   line-height: 1.5;
-  margin-bottom: 8px;
+  font-weight: 400;
   opacity: 0.95;
+  padding: 0; /* Remove padding extra */
+  margin-bottom: 0;
+  color: white; /* Subtítulo Branco */
 }
 
-/* --- Corpo do Formulário --- */
+/* --- Corpo do Formulário (Sem alterações) --- */
 .form-body {
   padding: 32px;
-  background-color: #FAF9F8;
-}
-
-.disclaimer {
-  font-size: 12px;
-  color: #605e5c;
-  margin-bottom: 16px;
+  background-color: var(--color-light-background);
 }
 
 .required-indicator {
-  color: #a4262c; /* Vermelho mais fechado da Microsoft */
-  font-size: 12px;
+  color: var(--hevile-orange);
+  font-size: 14px;
   margin-bottom: 24px;
 }
 
 .req {
-  color: #a4262c;
+  color: var(--hevile-orange);
   margin-left: 4px;
-}
-
-.form-section {
-  margin-bottom: 40px;
 }
 
 .section-title {
   font-size: 18px;
-  color: #201f1e;
+  color: var(--hevile-blue);
   margin-bottom: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* --- Perguntas --- */
 .question-block {
   background-color: #fff;
   padding: 24px;
   margin-bottom: 16px;
-  border: 1px solid #edebe9; /* Borda bem sutil */
-  border-radius: 4px; /* Levemente arredondado nas perguntas também */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Sombra muito leve em cada pergunta */
-  transition: all 0.2s ease;
-}
-
-.question-block:hover {
-  border-color: #c8c6c4;
+  border: 1px solid #edebe9;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .question-block:focus-within {
-  border-left: 4px solid #FF6A00;
-  padding-left: 20px; /* Compensa a borda esquerda para não mover o conteúdo */
+  border-left: 4px solid var(--hevile-orange);
+  padding-left: 20px;
 }
 
 .question-label {
@@ -140,136 +132,45 @@ body {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #323130;
+  color: var(--color-text);
 }
 
 .input-field {
   width: 100%;
-  padding: 8px 12px; /* Mais espaço interno para o texto não grudar na borda cinza */
+  padding: 8px 12px; 
   font-size: 15px;
-  border: 1px solid transparent; /* Começa sem borda visível exceto embaixo */
-  border-bottom: 2px solid #605e5c; /* Linha mais grossa embaixo padrão MS */
+  border: none;
+  border-bottom: 2px solid #c8c6c4;
   border-radius: 2px;
-  background-color: #f3f2f1; /* O CINZA PADRÃO PARA TODOS AGORA */
-  font-family: inherit;
-  outline: none;
+  background-color: var(--color-input-background);
+  font-family: 'Work Sans', sans-serif;
   transition: all 0.2s;
 }
 
 .input-field:focus {
-  border-color: #605e5c; /* Mantém a borda cinza escura ao redor */
-  border-bottom-color: #4A2100; /* Destaque marrom apenas embaixo quando clica */
-  background-color: #ffffff; /* Opcional: fica branco quando foca, como no MS Forms original. Se preferir sempre cinza, apague essa linha */
-}
-
-.input-field::placeholder {
-  color: #a19f9d;
+  border-bottom-color: var(--hevile-blue);
+  background-color: #ffffff;
 }
 
 textarea.input-field {
   resize: vertical;
-  /* Não precisa mais repetir background aqui, ele já herda do .input-field acima */
+  padding: 10px 12px;
 }
 
-textarea.input-field {
-  resize: vertical;
-  background-color: #f3f2f1; /* Leve fundo para textareas */
-  border: 1px solid transparent;
-  border-bottom: 1px solid #605e5c;
-  padding: 8px;
-  border-radius: 2px;
-}
-textarea.input-field:focus {
-  border-bottom: 2px solid #4A2100;
-  background-color: #fff;
-}
-
-/* --- Upload de Arquivo --- */
+/* --- Upload e Botão Remover (Sem alterações) --- */
 .file-upload-wrapper {
   margin-top: 12px;
   padding: 16px;
-  background-color: #f3f2f1;
+  background-color: var(--color-input-background);
   border-radius: 4px;
-  border: 1px dashed #8a8886;
+  border: 1px dashed #c8c6c4;
 }
 
-.file-upload-input {
-  font-size: 14px;
-  width: 100%;
-}
-
-.file-upload-info {
+.file-upload-wrapper .file-upload-info {
   font-size: 11px;
   color: #605e5c;
-  margin-top: 8px;
+  margin-top: 5px;
 }
-
-/* --- Botão de Enviar --- */
-.submit-area {
-  margin-top: 40px;
-  text-align: left;
-}
-
-.submit-btn {
-  background-color: #4A2100;
-  color: white;
-  border: none;
-  padding: 10px 32px;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.submit-btn:hover:not(:disabled) {
-  background-color: #381900;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-}
-
-.submit-btn:disabled {
-  background-color: #edebe9;
-  color: #a19f9d;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* --- Feedback e Footer --- */
-.feedback-box {
-  margin-top: 24px;
-  padding: 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  animation: fadeIn 0.5s ease;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.success {
-  background-color: #dff6dd;
-  color: #107c10;
-  border-left: 4px solid #107c10;
-}
-
-.error {
-  background-color: #fde7e9;
-  color: #a4262c;
-  border-left: 4px solid #a4262c;
-}
-
-.form-footer {
-  padding: 24px 32px;
-  background-color: #f3f2f1; /* Cinza um pouco mais escuro que o corpo */
-  font-size: 11px;
-  color: #605e5c;
-  text-align: center;
-  line-height: 1.4;
-}
-
-/* --- ADICIONE ESTE NOVO BLOCO NO SEU App.css (pode ser no final) --- */
 
 .file-list {
   margin-top: 15px;
@@ -282,7 +183,7 @@ textarea.input-field:focus {
   align-items: center;
   margin-bottom: 8px;
   background: #fff;
-  padding: 8px 12px; /* Mais padding para o texto não encostar */
+  padding: 8px 12px;
   border-radius: 4px;
   border: 1px solid #edebe9;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
@@ -290,41 +191,73 @@ textarea.input-field:focus {
 
 .remove-file-btn {
   margin-left: auto;
-  background: transparent; /* Fundo transparente */
-  color: #a4262c; /* X vermelho */
+  background: transparent;
+  color: var(--hevile-orange);
   border: none;
-  font-size: 20px; /* X maior */
-  line-height: 1; /* Alinha o X */
+  font-size: 20px;
+  line-height: 1;
   cursor: pointer;
-  padding: 0 5px; /* Espaçamento para o clique */
+  padding: 0 5px;
   transition: color 0.2s;
 }
 
 .remove-file-btn:hover {
-  color: #d13438; /* Vermelho mais vibrante no hover */
+  color: #c95115;
 }
 
-/* --- Tela de Sucesso --- */
+/* --- Botão de Enviar (Sem alterações) --- */
+.submit-area {
+  margin-top: 40px;
+  text-align: left;
+}
+
+.submit-btn {
+  background-color: var(--hevile-blue);
+  color: white;
+  border: none;
+  padding: 10px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.submit-btn:hover:not(:disabled) {
+  background-color: #386073;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.submit-btn:disabled {
+  background-color: #edebe9;
+  color: #a19f9d;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* --- Tela de Sucesso (Sem alterações) --- */
 .success-view {
   padding: 60px 32px;
   text-align: center;
+  min-height: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 400px; /* Altura mínima para ficar bonito na tela */
 }
 
 .success-icon {
   font-size: 64px;
-  color: #107c10; /* Verde Microsoft */
+  color: var(--hevile-blue);
   margin-bottom: 24px;
 }
 
 .success-title {
   font-size: 28px;
-  color: #4A2100;
+  color: var(--hevile-blue);
   margin-bottom: 16px;
+  font-weight: 700;
 }
 
 .success-desc {
@@ -336,7 +269,7 @@ textarea.input-field:focus {
 }
 
 .new-dispute-btn {
-  background-color: #4A2100;
+  background-color: var(--hevile-blue);
   color: white;
   border: none;
   padding: 12px 32px;
@@ -349,9 +282,16 @@ textarea.input-field:focus {
   align-items: center;
   gap: 8px;
 }
-
 .new-dispute-btn:hover {
-  background-color: #381900;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background-color: #386073;
+}
+
+/* --- Footer (Sem alterações) --- */
+.form-footer {
+  padding: 24px 32px;
+  background-color: #f3f2f1;
+  font-size: 14px;
+  color: #605e5c;
+  line-height: 1.4;
+  text-align: center;
 }

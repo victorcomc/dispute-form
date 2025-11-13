@@ -112,7 +112,7 @@ function App() {
           <>
             <header className="form-header">
               <div className="logo-area">
-                <img src="/logo.png" alt="Hevile Logo" className="header-logo" />
+                <img src="/logo azul-laranja.png" alt="Hevile Logo - We Deliver The Best" className="header-logo" />
               </div>
               <h1>Formulário de Solicitação de Dispute</h1>
               <p className="header-desc">Este formulário tem o objetivo de centralizar as informações e evidências referentes ao seu dispute.</p>
