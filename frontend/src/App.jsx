@@ -155,7 +155,7 @@ function App() {
                     <label className="question-label">10. Anexar Evidências (Você pode adicionar vários arquivos): <span className="req">*</span></label>
                     <div className="file-upload-wrapper">
                       <input type="file" id="file-upload" className="file-upload-input" onChange={handleFileChange} multiple />
-                      <div className="file-upload-info">Clique novamente para adicionar mais arquivos.</div>
+                      <div className="file-upload-info">Clique novamente para adicionar mais arquivos. Observação: Caso anexe muitos arquivos e/ou arquivos grandes, aguarde até mudar a tela confirmando o envio dos documentos.</div>
                       {attachedFiles.length > 0 && (
                         <ul className="file-list">
                           {attachedFiles.map((file, index) => (
